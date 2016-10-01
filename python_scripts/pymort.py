@@ -44,9 +44,6 @@ def makemort_csv(file, newfile):
                         str(int(line[16:19])) + ',' +  str(int(line[19:23])) + '\n'
                 myfile.write(newline)
         
-
-csvfilepath = '/Users/vickitoy/sideprojects/mortality/data/'
-
 def makemorttable(tablename, csvfile):
     
     passdict = password_ret(passfile=passfile)
@@ -70,6 +67,53 @@ def makemorttable(tablename, csvfile):
                         icd INT,
                         recode INT,
                         num_deaths INT) 
+                    """  % (tablename)
+        cur.execute(sqltable)
+        sqlload = """LOAD DATA LOCAL INFILE '{}'
+                        INTO TABLE %s
+                        FIELDS TERMINATED BY ','
+                        OPTIONALLY ENCLOSED BY '"'
+                        LINES TERMINATED BY '\n'
+                        IGNORE 1 LINES;;"""  % (tablename)               
+        cur.execute(sqlload.format(csvfile))
+        
+        
+def makestate_csv(file, newfile):
+
+    with open(newfile, 'w') as myfile:
+        labels = 'fips_state,state_abbv,state_name,gnisid\n'
+        myfile.write(labels)
+        
+
+    with open(newfile, 'a') as myfile:
+    
+        with open(file, 'r') as f:
+            for i,line in enumerate(f):
+                if i == 0: continue
+                newline = line.split('|')
+                newline = (',').join(newline)
+                myfile.write(newline)
+                
+                
+def makestatetable(tablename, csvfile):
+    
+    passdict = password_ret(passfile=passfile)
+    
+    # connect(host, database username, password, database)
+    db = 'testdb'
+    
+    con = mdb.connect('localhost', passdict[db][0], passdict[db][1], db)
+    
+    # Don't need to do error handling or closing when using the "with"
+    with con:
+        
+        # Creates Writers table within testdb
+        cur = con.cursor()   
+        sqltable = """CREATE TABLE %s (
+                        fips_state INT,
+                        state_abbv CHAR(2),
+                        state_name VARCHAR(40),
+                        gnisid INT) 
                     """  % (tablename)
         cur.execute(sqltable)
         sqlload = """LOAD DATA LOCAL INFILE '{}'
