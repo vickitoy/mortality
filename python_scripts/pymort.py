@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import csv
 import MySQLdb as mdb
+import re
 
 passfile = '/Users/vickitoy/sideprojects/mortality/password.txt'
 
@@ -41,7 +42,7 @@ def makemort_csv(file, newfile):
                 newline = str(counter) + ',' + str(int(line[:2])) + ',' +\
                         str(int(line[2:5])) + ',' +\
                         str(int(line[5:9])) + ',' +  str(int(line[9])) + ',' +\
-                        str(int(line[10:12])) + ',' +  str(int(line[12:16])) + ',' +\
+                        str(int(line[10:12])) + ',' +  line[12:16] + ',' +\
                         str(int(line[16:19])) + ',' +  str(int(line[19:23])) + '\n'
                 myfile.write(newline)
                 counter +=1
@@ -67,7 +68,7 @@ def makemorttable(tablename, csvfile):
                         year INT,
                         race_sex INT,
                         age_death INT,
-                        icd INT,
+                        icd VARCHAR(4),
                         recode INT,
                         num_deaths INT) 
                     """  % (tablename)
@@ -212,6 +213,51 @@ def makepoptable(tablename, csvfile):
                         pop85 INT,
                         county_name VARCHAR(25),
                         record_type INT) 
+                    """  % (tablename)
+        cur.execute(sqltable)
+        sqlload = """LOAD DATA LOCAL INFILE '{}'
+                        INTO TABLE %s
+                        FIELDS TERMINATED BY ','
+                        OPTIONALLY ENCLOSED BY '"'
+                        LINES TERMINATED BY '\n'
+                        IGNORE 1 LINES;;"""  % (tablename)               
+        cur.execute(sqlload.format(csvfile))
+        
+def makeicd8_csv(file, newfile):
+
+    with open(newfile, 'w') as myfile:
+        labels = 'id,icd_desc\n'
+        myfile.write(labels)
+
+    counter = 1
+    with open(newfile, 'a') as myfile:
+    
+        with open(file, 'r') as f:
+            for line in f:
+                if line[0] == '(': continue
+                line=re.sub(r'\.', "", line)
+                newline = str(counter)+','+line[0:4]+','+re.sub(r'^(\s+)','',line[4:])
+                myfile.write(newline)
+                counter += 1
+                
+def makeicd8table(tablename, csvfile):
+    
+    passdict = password_ret(passfile=passfile)
+    
+    # connect(host, database username, password, database)
+    db = 'testdb'
+    
+    con = mdb.connect('localhost', passdict[db][0], passdict[db][1], db)
+    
+    # Don't need to do error handling or closing when using the "with"
+    with con:
+        
+        # Creates Writers table within testdb
+        cur = con.cursor()   
+        sqltable = """CREATE TABLE %s (
+                        ID int primary key NOT NULL AUTO_INCREMENT,
+                        icd VARCHAR(4),
+                        icd_desc VARCHAR(100)) 
                     """  % (tablename)
         cur.execute(sqltable)
         sqlload = """LOAD DATA LOCAL INFILE '{}'
