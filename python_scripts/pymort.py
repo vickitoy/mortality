@@ -267,3 +267,50 @@ def makeicd8table(tablename, csvfile):
                         LINES TERMINATED BY '\n'
                         IGNORE 1 LINES;;"""  % (tablename)               
         cur.execute(sqlload.format(csvfile))
+
+def makeicd9_csv(file, newfile):
+
+    with open(newfile, 'w') as myfile:
+        labels = 'id,icd_desc\n'
+        myfile.write(labels)
+
+    counter = 1
+    with open(newfile, 'a') as myfile:
+    
+        with open(file, 'r') as f:
+            for line in f:
+                if line[0] == '(': continue
+                line=re.sub(r'\,', "", line)
+                line=re.sub(r"\'", "", line)
+                line=re.sub(r'\"', "", line)
+                newline = str(counter)+','+line[0:5]+','+re.sub(r'^(\s+)','',line[5:])
+                myfile.write(newline)
+                counter += 1
+                                        
+def makeicd9table(tablename, csvfile):
+    
+    passdict = password_ret(passfile=passfile)
+    
+    # connect(host, database username, password, database)
+    db = 'testdb'
+    
+    con = mdb.connect('localhost', passdict[db][0], passdict[db][1], db)
+    
+    # Don't need to do error handling or closing when using the "with"
+    with con:
+        
+        # Creates Writers table within testdb
+        cur = con.cursor()   
+        sqltable = """CREATE TABLE %s (
+                        ID int primary key NOT NULL AUTO_INCREMENT,
+                        icd VARCHAR(5),
+                        icd_desc VARCHAR(100)) 
+                    """  % (tablename)
+        cur.execute(sqltable)
+        sqlload = """LOAD DATA LOCAL INFILE '{}'
+                        INTO TABLE %s
+                        FIELDS TERMINATED BY ','
+                        OPTIONALLY ENCLOSED BY '"'
+                        LINES TERMINATED BY '\n'
+                        IGNORE 1 LINES;;"""  % (tablename)               
+        cur.execute(sqlload.format(csvfile))
