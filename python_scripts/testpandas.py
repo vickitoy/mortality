@@ -20,7 +20,7 @@ def password_ret(passfile=passfile):
     return passdict
 
 
-def totaldeaths():
+def totaldeaths(bygender=False):
 
     passdict = password_ret(passfile=passfile)
     
@@ -38,22 +38,26 @@ def totaldeaths():
     #print(end - start)
 
     start = time.time()
-    a,b = testquery()
+    a,b,c,d = testquery()
     
     mort = pd.read_sql(a.statement, conn)
-    pop = pd.read_sql(b.statement, conn)
-    end = time.time()
-    print(end - start)
-    #men=pd.read_sql('SELECT year, SUM(num_deaths)/1000000 as total_deaths FROM mort6878 WHERE race_sex IN (1,3,5) GROUP BY year UNION ALL SELECT year, SUM(num_deaths)/1000000 as total_deaths FROM mort7988 WHERE race_sex IN (1,3,5) GROUP BY year;', conn) 
-    
-    #women=pd.read_sql('SELECT year, SUM(num_deaths)/1000000 as total_deaths FROM mort6878 WHERE race_sex IN (2,4,6) GROUP BY year UNION ALL SELECT year, SUM(num_deaths)/1000000 as total_deaths FROM mort7988 WHERE race_sex IN (2,4,6) GROUP BY year;', conn) 
-    
-    #women.plot('year', 'total_deaths')
-    #plt.title('women deaths in millions')
-    #plt.savefig('womentotaldeaths.png')
+    #pop = pd.read_sql(b.statement, conn)
 
-    plt.plot(mort['year'],mort['total_deaths']/pop['total_population'])
-    plt.show()
+    end = time.time()
+    print(end - start)  
+    print mort  
+    
+    if bygender:
+        sexm = pd.read_sql(c.statement,conn)
+        sexf = pd.read_sql(d.statement,conn)
+        
+        plt.bar(sm['year'], sm['total_deaths']/1e6, label='men')
+        plt.bar(sm['year'], sm['total_deaths']/1e6, bottom= sm['total_deaths']/1e6, 
+            color='red', label='women')
+        plt.ylabel('Total deaths (millions)')
+        plt.xlabel('Year')
+        plt.legend()
+        plt.show()
     
 def testquery():
     Base = automap_base()
@@ -78,13 +82,11 @@ def testquery():
     #User = Base.classes.users #MUST HAVE PRIMARY KEY
     #a=session.query(User)
     
-    mort1 = Base.classes.mort6878
-    mort2 = Base.classes.mort7988
-    yeardeath1 = session.query(mort1.year.label('year'), func.sum(mort1.num_deaths).label('total_deaths')).group_by(mort1.year)
-    yeardeath2 = session.query(mort2.year.label('year'), func.sum(mort2.num_deaths).label('total_deaths')).group_by(mort2.year)
-    
-    yeardeathall = yeardeath1.union_all(yeardeath2)
-    
+    ################## Query for total deaths by year ##################
+    mort = Base.classes.mortall
+    yeardeathall = session.query(mort.year.label('year'), func.sum(mort.num_deaths).label('total_deaths')).group_by(mort.year)
+        
+    ################## Query for total population by year ##################
     pop1 = Base.classes.pop6878
     pop2 = Base.classes.pop7988
     yearpop1 = session.query(pop1.year.label('year'), func.sum(pop1.pop1_4 + pop1.pop5_9 + pop1.pop10_14 +\
@@ -95,6 +97,14 @@ def testquery():
         pop2.pop65_74 + pop2.pop75_84 + pop2.pop75_84).label('total_population')).group_by(pop2.year).filter(pop2.county_name == 'U.S.')
     
     yearpopall = yearpop1.union_all(yearpop2)
-    #print yeardeathall.statement
-    return yeardeathall, yearpopall
+    
+    ################## Query for total deaths by year and sex ##################
+    sexfdeath = session.query(mort.year.label('year'), 
+        func.sum(mort.num_deaths).label('total_deaths')).group_by(mort.year).filter(mort.race_sex.in_([2,4,6]))
+    sexmdeath = session.query(mort.year.label('year'), 
+        func.sum(mort.num_deaths).label('total_deaths')).group_by(mort.year).filter(mort.race_sex.in_([1,3,5]))
+    
+    return yeardeathall, yearpopall, sexmdeath, sexfdeath
+    
+    
     
